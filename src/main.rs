@@ -115,7 +115,6 @@ fn main() -> Result<()> {
     });
     pb.finish_with_message("Hashing complete");
     let live_hashes = Arc::try_unwrap(live_hashes).unwrap().into_inner().unwrap();
-    // let pass = Arc::try_unwrap(pass_count).unwrap().into_inner().unwrap();
     let fail = Arc::try_unwrap(fail_count).unwrap().into_inner().unwrap();
     let ref_hashes = read_md5_file(&args.md5_file)?;
     // Ensure parent directory exists
@@ -168,22 +167,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// fn compute_hashes<P: AsRef<Path>>(dir: P) -> Result<HashMap<String, String>> {
-//     let mut hashes = HashMap::new();
-//     for entry in WalkDir::new(dir) {
-//         let entry = entry?;
-//         if entry.file_type().is_file() {
-//             let path = entry.path();
-//             let rel_path = path.strip_prefix(entry.path().ancestors().last().unwrap())
-//                 .unwrap_or(path)
-//                 .to_string_lossy()
-//                 .to_string();
-//             let hash = md5_file(path)?;
-//             hashes.insert(rel_path, hash);
-//         }
-//     }
-//     Ok(hashes)
-// }
 
 fn md5_file<P: AsRef<Path>>(path: P) -> Result<String> {
     let mut file = File::open(&path)?;

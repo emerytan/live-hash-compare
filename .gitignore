@@ -1,5 +1,5 @@
 # Rust/Cargo
-/target
+target/*
 **/*.rs.bk
 Cargo.lock
 
@@ -13,3 +13,4 @@ Cargo.lock
 target/release/rpmbuild/
 rpm/
 *.rpm
+
