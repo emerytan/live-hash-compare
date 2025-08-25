@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
-use clap::Parser;
+use clap::{Parser, ArgGroup};
 use walkdir::WalkDir;
 use md5;
 use anyhow::Result;
@@ -25,15 +25,19 @@ struct Args {
     md5_file: String,
 
     /// Path to write the results report
-    #[arg(short, long)]
-    report_path: String,
+    #[arg(short, long, value_name = "PATH")]
+    report_path: Option<String>,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Handle report path: append timestamp if file exists
-    let mut report_path = args.report_path.clone();
+    // Set default report path if not provided
+    let default_report = || {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        format!("{}/live-hash/report.txt", home)
+    };
+    let mut report_path = args.report_path.clone().unwrap_or_else(default_report);
     if Path::new(&report_path).exists() {
         let now = Local::now();
         let ts = now.format("%Y%m%d_%H-%M-%S");
@@ -111,9 +115,13 @@ fn main() -> Result<()> {
     });
     pb.finish_with_message("Hashing complete");
     let live_hashes = Arc::try_unwrap(live_hashes).unwrap().into_inner().unwrap();
-    let pass = Arc::try_unwrap(pass_count).unwrap().into_inner().unwrap();
+    // let pass = Arc::try_unwrap(pass_count).unwrap().into_inner().unwrap();
     let fail = Arc::try_unwrap(fail_count).unwrap().into_inner().unwrap();
     let ref_hashes = read_md5_file(&args.md5_file)?;
+    // Ensure parent directory exists
+    if let Some(parent) = Path::new(&report_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let mut report = File::create(&report_path)?;
 
     // Build a map from filename (no path) to hash for reference hashes
@@ -143,7 +151,11 @@ fn main() -> Result<()> {
     }
 
     if mismatches.is_empty() {
-        println!("All good");
+        println!(
+            "\n{}\n{} files checked, no mismatches found.\nAll good.\n",
+            "====================".green(),
+            total_files
+        );
     } else {
         println!("Mismatched files:");
         for (filename, live_hash, ref_hash) in &mismatches {
@@ -152,26 +164,26 @@ fn main() -> Result<()> {
         // Print FAIL counter in red
         println!("{} {}", "FAIL count:".red(), fail);
     }
-    println!("report can be at the output path");
+    println!("report written to {}", report_path);
     Ok(())
 }
 
-fn compute_hashes<P: AsRef<Path>>(dir: P) -> Result<HashMap<String, String>> {
-    let mut hashes = HashMap::new();
-    for entry in WalkDir::new(dir) {
-        let entry = entry?;
-        if entry.file_type().is_file() {
-            let path = entry.path();
-            let rel_path = path.strip_prefix(entry.path().ancestors().last().unwrap())
-                .unwrap_or(path)
-                .to_string_lossy()
-                .to_string();
-            let hash = md5_file(path)?;
-            hashes.insert(rel_path, hash);
-        }
-    }
-    Ok(hashes)
-}
+// fn compute_hashes<P: AsRef<Path>>(dir: P) -> Result<HashMap<String, String>> {
+//     let mut hashes = HashMap::new();
+//     for entry in WalkDir::new(dir) {
+//         let entry = entry?;
+//         if entry.file_type().is_file() {
+//             let path = entry.path();
+//             let rel_path = path.strip_prefix(entry.path().ancestors().last().unwrap())
+//                 .unwrap_or(path)
+//                 .to_string_lossy()
+//                 .to_string();
+//             let hash = md5_file(path)?;
+//             hashes.insert(rel_path, hash);
+//         }
+//     }
+//     Ok(hashes)
+// }
 
 fn md5_file<P: AsRef<Path>>(path: P) -> Result<String> {
     let mut file = File::open(&path)?;
