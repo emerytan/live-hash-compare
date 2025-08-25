@@ -1,0 +1,15 @@
+# Rust/Cargo
+/target
+**/*.rs.bk
+Cargo.lock
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# RPM build artifacts
+target/release/rpmbuild/
+rpm/
+*.rpm
