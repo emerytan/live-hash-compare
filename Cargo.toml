@@ -1,0 +1,27 @@
+chrono = "0.4"
+[package]
+name = "live-hash-compare"
+version = "0.1.0"
+edition = "2021"
+description = "deeptime utility"
+license = "MIT"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+md5 = "0.7"
+walkdir = "2.3"
+anyhow = "1.0"
+indicatif = "0.17"
+terminal_size = "0.3"
+rayon = "1.8"
+colored = "2.1"
+chrono = "0.4.41"
+
+[package.metadata.rpm]
+package = "live-hash-compare"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+live-hash-compare = { path = "/usr/bin/live-hash-compare" }
