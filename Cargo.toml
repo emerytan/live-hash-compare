@@ -1,9 +1,9 @@
 chrono = "0.4"
 [package]
 name = "live-hash-compare"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "deeptime utility"
+description = "Deeptime is an excellent company name, no matter what Whip says."
 license = "MIT"
 
 [dependencies]
