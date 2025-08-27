@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
-use clap::{Parser, ArgGroup};
+use clap::{Parser};
 use walkdir::WalkDir;
 use md5;
 use anyhow::Result;
@@ -15,22 +15,78 @@ use rayon::prelude::*;
 /// Compare live file hashes to a reference md5 file and report differences
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[clap(group(
+    clap::ArgGroup::new("mode")
+        .required(true)
+        .args(["md5_file", "generate"])
+))]
 struct Args {
     /// Path to directory containing files to hash
     #[arg(short, long)]
     files_path: String,
 
     /// Path to md5 reference file
-    #[arg(short, long)]
-    md5_file: String,
+    #[arg(short, long, required_unless_present = "generate")]
+    md5_file: Option<String>,
 
     /// Path to write the results report
-    #[arg(short, long, value_name = "PATH")]
+    #[arg(short, long, value_name = "PATH", required_unless_present = "generate")]
     report_path: Option<String>,
+
+    /// Generate an md5 file from the source path (do not compare)
+    #[arg(long)]
+    generate: bool,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // If --generate is set, just generate an md5 file for all files in --files-path
+    if args.generate {
+        let file_paths: Vec<_> = WalkDir::new(&args.files_path)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .collect();
+        let total_files = file_paths.len();
+        let term_width = if let Some((Width(w), _)) = terminal_size() {
+            (w as f32 * 0.9) as usize
+        } else {
+            80
+        };
+        let pb = ProgressBar::new(total_files as u64);
+        pb.set_style(ProgressStyle::with_template(&format!(
+            "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}%",
+            term_width.saturating_sub(30)
+        ))
+        .unwrap()
+        .progress_chars("=> "));
+
+        // Multithreaded hashing with rayon, collect (filename, hash) pairs
+        let hashes: Vec<(String, String)> = file_paths.par_iter().map(|entry| {
+            let path = entry.path();
+            let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
+            let rel = path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string_lossy().to_string());
+            pb.inc(1);
+            (rel, hash)
+        }).collect();
+        pb.finish_with_message("Hashing complete");
+
+        let now = Local::now();
+        let ts = now.format("%Y%m%d_%H-%M-%S");
+        let base = Path::new(&args.files_path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "hashes".to_string());
+        let out_name = format!("{}_{}.md5", base, ts);
+        let out_path = Path::new(&args.files_path).join(out_name);
+        let mut out = File::create(&out_path)?;
+        for (rel, hash) in hashes {
+            writeln!(out, "{} {}", hash, rel)?;
+        }
+        println!("MD5 file generated: {}", out_path.display().to_string().green());
+        return Ok(());
+    }
 
     // Set default report path if not provided
     let default_report = || {
@@ -60,7 +116,7 @@ fn main() -> Result<()> {
 
     // Determine terminal width for progress bar
     let term_width = if let Some((Width(w), _)) = terminal_size() {
-        (w as f32 * 0.9) as usize
+        (w as f32 * 0.9).round() as usize
     } else {
         80
     };
@@ -80,7 +136,7 @@ fn main() -> Result<()> {
     let fail_count = Arc::new(Mutex::new(0u64));
 
     // Build a map from filename (no path) to hash for reference hashes (needed for comparison)
-    let ref_hashes = read_md5_file(&args.md5_file)?;
+    let ref_hashes = read_md5_file(args.md5_file.as_ref().unwrap())?;
     let mut ref_by_filename: HashMap<String, String> = HashMap::new();
     for (path, hash) in &ref_hashes {
         if let Some(filename) = Path::new(path).file_name().map(|s| s.to_string_lossy().to_string()) {
@@ -116,7 +172,7 @@ fn main() -> Result<()> {
     pb.finish_with_message("Hashing complete");
     let live_hashes = Arc::try_unwrap(live_hashes).unwrap().into_inner().unwrap();
     let fail = Arc::try_unwrap(fail_count).unwrap().into_inner().unwrap();
-    let ref_hashes = read_md5_file(&args.md5_file)?;
+    let ref_hashes = read_md5_file(args.md5_file.as_ref().unwrap())?;
     // Ensure parent directory exists
     if let Some(parent) = Path::new(&report_path).parent() {
         std::fs::create_dir_all(parent)?;
