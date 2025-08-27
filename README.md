@@ -1,11 +1,11 @@
 # live-hash-compare
 
-A Rust CLI tool to compare live file MD5 hashes in a directory against a reference md5 file, reporting any differences.
+A Rust CLI tool to compare MD5 hashes generated from a given path against a reference md5 file, reporting any differences.
 
 ## Usage
 
 ```
-cargo run -- --files-path <DIR> --md5-file <MD5FILE> --report-path <REPORT>
+live-hash-compare --files-path <DIR> --md5-file <MD5FILE> --report-path <REPORT>
 ```
 
 - `--files-path`  Path to directory containing files to hash
