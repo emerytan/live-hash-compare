@@ -15,7 +15,7 @@ cargo run -- --files-path <DIR> --md5-file <MD5FILE> --report-path <REPORT>
 ## Example
 
 ```
-cargo run -- --files-path ./data --md5-file ./reference.md5 --report-path ./report.txt
+live-has-compare --files-path ./data --md5-file ./reference.md5 --report-path ./report.txt
 ```
 
 ## Output

@@ -68,7 +68,7 @@ fn main() -> Result<()> {
     let pb = ProgressBar::new(total_files as u64);
     pb.set_style(ProgressStyle::with_template(&format!(
         "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}% {{msg}}",
-        term_width.saturating_sub(30)
+        term_width.saturating_sub(50)
     ))
     .unwrap()
     .progress_chars("=> "));
