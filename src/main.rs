@@ -1,16 +1,16 @@
+use anyhow::Result;
 use chrono::Local;
+use clap::Parser;
 use colored::*;
+use indicatif::{ProgressBar, ProgressStyle};
+use md5;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
-use clap::{Parser};
+use terminal_size::{terminal_size, Width};
 use walkdir::WalkDir;
-use md5;
-use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
-use terminal_size::{Width, terminal_size};
-use rayon::prelude::*;
 
 /// Compare live file hashes to a reference md5 file and report differences
 #[derive(Parser, Debug)]
@@ -50,21 +50,29 @@ fn main() -> Result<()> {
             80
         };
         let pb = ProgressBar::new(total_files as u64);
-        pb.set_style(ProgressStyle::with_template(&format!(
-            "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}%",
-            term_width.saturating_sub(30)
-        ))
-        .unwrap()
-        .progress_chars("=> "));
+        pb.set_style(
+            ProgressStyle::with_template(&format!(
+                "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}%",
+                term_width.saturating_sub(30)
+            ))
+            .unwrap()
+            .progress_chars("=> "),
+        );
 
         // Multithreaded hashing with rayon, collect (filename, hash) pairs
-        let hashes: Vec<(String, String)> = file_paths.par_iter().map(|entry| {
-            let path = entry.path();
-            let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
-            let rel = path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string_lossy().to_string());
-            pb.inc(1);
-            (rel, hash)
-        }).collect();
+        let hashes: Vec<(String, String)> = file_paths
+            .par_iter()
+            .map(|entry| {
+                let path = entry.path();
+                let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
+                let rel = path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.to_string_lossy().to_string());
+                pb.inc(1);
+                (rel, hash)
+            })
+            .collect();
         pb.finish_with_message("Hashing complete");
 
         let now = Local::now();
@@ -79,7 +87,10 @@ fn main() -> Result<()> {
         for (rel, hash) in hashes {
             writeln!(out, "{} {}", hash, rel)?;
         }
-        println!("MD5 file generated: {}", out_path.display().to_string().green());
+        println!(
+            "MD5 file generated: {}",
+            out_path.display().to_string().green()
+        );
         return Ok(());
     }
 
@@ -95,7 +106,10 @@ fn main() -> Result<()> {
         let path = Path::new(&report_path);
         let parent = path.parent().unwrap_or_else(|| Path::new("."));
         let stem = path.file_stem().unwrap_or_default().to_string_lossy();
-        let ext = path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+        let ext = path
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default();
         let new_name = format!("{}_{}{}", stem, ts, ext);
         report_path = parent.join(new_name).to_string_lossy().to_string();
     }
@@ -116,12 +130,14 @@ fn main() -> Result<()> {
     };
 
     let pb = ProgressBar::new(total_files as u64);
-    pb.set_style(ProgressStyle::with_template(&format!(
-        "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}% {{msg}}",
-        term_width.saturating_sub(50)
-    ))
-    .unwrap()
-    .progress_chars("=> "));
+    pb.set_style(
+        ProgressStyle::with_template(&format!(
+            "{{bar:.{}}} {{pos}}/{{len}} files | {{percent}}% {{msg}}",
+            term_width.saturating_sub(50)
+        ))
+        .unwrap()
+        .progress_chars("=> "),
+    );
 
     use std::sync::{Arc, Mutex};
     let pb = Arc::new(pb);
@@ -133,25 +149,32 @@ fn main() -> Result<()> {
     let ref_hashes = read_md5_file(args.md5_file.as_ref().unwrap())?;
     let mut ref_by_filename: HashMap<String, String> = HashMap::new();
     for (path, hash) in &ref_hashes {
-        if let Some(filename) = Path::new(path).file_name().map(|s| s.to_string_lossy().to_string()) {
+        if let Some(filename) = Path::new(path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+        {
             ref_by_filename.insert(filename, hash.clone());
         }
     }
 
     file_paths.par_iter().for_each(|entry| {
         let path = entry.path();
-        let rel_path = path.strip_prefix(entry.path().ancestors().last().unwrap())
+        let rel_path = path
+            .strip_prefix(entry.path().ancestors().last().unwrap())
             .unwrap_or(path)
             .to_string_lossy()
             .to_string();
         let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
-        let filename = Path::new(&rel_path).file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| rel_path.clone());
+        let filename = Path::new(&rel_path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| rel_path.clone());
         let mut pass = pass_count.lock().unwrap();
         let mut fail = fail_count.lock().unwrap();
         match ref_by_filename.get(&filename) {
             Some(ref_hash) if ref_hash == &hash => {
                 *pass += 1;
-            },
+            }
             _ => {
                 *fail += 1;
             }
@@ -159,7 +182,10 @@ fn main() -> Result<()> {
         live_hashes.lock().unwrap().insert(rel_path, hash);
         pb.set_message(format!(
             "{} {}    {} {}",
-            "PASS:".green(), *pass, "FAIL:".red(), *fail
+            "PASS:".green(),
+            *pass,
+            "FAIL:".red(),
+            *fail
         ));
         pb.inc(1);
     });
@@ -176,7 +202,10 @@ fn main() -> Result<()> {
     // Build a map from filename (no path) to hash for reference hashes
     let mut ref_by_filename: HashMap<String, String> = HashMap::new();
     for (path, hash) in &ref_hashes {
-        if let Some(filename) = Path::new(path).file_name().map(|s| s.to_string_lossy().to_string()) {
+        if let Some(filename) = Path::new(path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+        {
             ref_by_filename.insert(filename, hash.clone());
         }
     }
@@ -184,15 +213,18 @@ fn main() -> Result<()> {
     // For each file in live_hashes, compare by filename only
     let mut mismatches = Vec::new();
     for (path, live_hash) in &live_hashes {
-        let filename = Path::new(path).file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
+        let filename = Path::new(path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.clone());
         match ref_by_filename.get(&filename) {
             Some(ref_hash) if ref_hash == live_hash => {
                 writeln!(report, "{}\t{}\tMATCH", filename, live_hash)?;
-            },
+            }
             Some(ref_hash) => {
                 writeln!(report, "{}\t{}\tFAIL", filename, live_hash)?;
                 mismatches.push((filename.clone(), live_hash.clone(), ref_hash.clone()));
-            },
+            }
             None => {
                 writeln!(report, "{}\t{}\tFAIL", filename, live_hash)?;
             }
@@ -216,7 +248,6 @@ fn main() -> Result<()> {
     println!("report written to {}", report_path);
     Ok(())
 }
-
 
 fn md5_file<P: AsRef<Path>>(path: P) -> Result<String> {
     let mut file = File::open(&path)?;
