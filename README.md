@@ -30,10 +30,10 @@ Generate md5 file for given path, save it to the path
 live-hash-compare --generate --files-path ./data
 ```
 
-## --help Output
+## -h, --help Output
 
 ```
-deeptime utility
+Deeptime is an excellent company name, no matter what Whip says.
 
 Usage: live-hash-compare [OPTIONS] --files-path <FILES_PATH> <--md5-file <MD5_FILE>|--generate>
 

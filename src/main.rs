@@ -21,19 +21,15 @@ use rayon::prelude::*;
         .args(["md5_file", "generate"])
 ))]
 struct Args {
-    /// Path to directory containing files to hash
     #[arg(short, long)]
     files_path: String,
 
-    /// Path to md5 reference file
     #[arg(short, long, required_unless_present = "generate")]
     md5_file: Option<String>,
 
-    /// Path to write the results report
     #[arg(short, long, value_name = "PATH", required_unless_present = "generate")]
     report_path: Option<String>,
 
-    /// Generate an md5 file from the source path (do not compare)
     #[arg(long)]
     generate: bool,
 }
@@ -41,7 +37,6 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // If --generate is set, just generate an md5 file for all files in --files-path
     if args.generate {
         let file_paths: Vec<_> = WalkDir::new(&args.files_path)
             .into_iter()
@@ -114,7 +109,6 @@ fn main() -> Result<()> {
 
     let total_files = file_paths.len();
 
-    // Determine terminal width for progress bar
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         (w as f32 * 0.9).round() as usize
     } else {
