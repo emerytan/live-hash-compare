@@ -32,10 +32,20 @@ struct Args {
 
     #[arg(long)]
     generate: bool,
+
+    #[arg(long, value_name = "NUM")]
+    threads: Option<usize>,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    if let Some(num_threads) = args.threads {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build_global()
+            .ok();
+    }
 
     if args.generate {
         let file_paths: Vec<_> = WalkDir::new(&args.files_path)
@@ -66,9 +76,15 @@ fn main() -> Result<()> {
                 let path = entry.path();
                 let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
                 let rel = path
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| path.to_string_lossy().to_string());
+                    .strip_prefix(&args.files_path)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .to_string();
+                let rel = if rel.starts_with('/') {
+                    rel
+                } else {
+                    format!("./{}", rel)
+                };
                 pb.inc(1);
                 (rel, hash)
             })
