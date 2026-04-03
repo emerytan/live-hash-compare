@@ -33,19 +33,18 @@ struct Args {
     #[arg(long)]
     generate: bool,
 
-    #[arg(long, value_name = "NUM")]
-    threads: Option<usize>,
+    #[arg(long, value_name = "NUM", default_value = "1")]
+    threads: usize,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    if let Some(num_threads) = args.threads {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build_global()
-            .ok();
-    }
+    // Configure rayon thread pool
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(args.threads)
+        .build_global()
+        .ok();
 
     if args.generate {
         let file_paths: Vec<_> = WalkDir::new(&args.files_path)
