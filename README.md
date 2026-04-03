@@ -4,7 +4,7 @@ A Rust CLI tool to compare MD5 hashes generated from a given path against a refe
 
 It can also be used as a standalone multi-threaded md5 checksum generator.
 
-By default it will use all CPU cores, set a reasonable thread count based on current or anticipated CPU demand from other applications. 
+By default it will use 1 CPU core, set a reasonable thread count based on current or anticipated CPU demand from other applications. 
 
 ## Usage
 
@@ -16,7 +16,7 @@ live-hash-compare --files-path <DIR> --md5-file <MD5FILE> --report-path <REPORT>
 - `--md5-file`    Path to md5 reference file (format: `<md5sum> <filename>` per line)
 - `--report-path` Path to write the results report
 - `--generate`    Create md5 file for path given in `--files-path`.  
-- `--threads`    Set the number of CPU cores to be used.  Default is all.  
+- `--threads`    Set the number of CPU cores to be used.  Default is 1.  
 
 ## Examples   
 
