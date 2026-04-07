@@ -27,7 +27,7 @@ struct Args {
     #[arg(short, long, required_unless_present = "generate")]
     md5_file: Option<String>,
 
-    #[arg(short, long, value_name = "PATH", required_unless_present = "generate")]
+    #[arg(short, long, value_name = "PATH")]
     report_path: Option<String>,
 
     #[arg(long)]
@@ -111,8 +111,15 @@ fn main() -> Result<()> {
 
     // Set default report path if not provided
     let default_report = || {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        format!("{}/live-hash/report.txt", home)
+        let cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
+        let base = Path::new(&args.files_path)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "report".to_string());
+        let ts = Local::now().format("%Y%m%d_%H%M%S");
+        cwd.join(format!("{}-{}.txt", base, ts))
+            .to_string_lossy()
+            .to_string()
     };
     let mut report_path = args.report_path.clone().unwrap_or_else(default_report);
     if Path::new(&report_path).exists() {
