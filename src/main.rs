@@ -14,7 +14,12 @@ use walkdir::WalkDir;
 
 /// Compare live file hashes to a reference md5 file and report differences
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about,
+    long_about = None,
+    override_usage = r#"live-hash-compare -f <PATH> (-m <FILE> | --generate) [-r <PATH>] [--threads <NUM>]"#)]
 #[clap(group(
     clap::ArgGroup::new("mode")
         .required(true)
@@ -30,17 +35,16 @@ struct Args {
     #[arg(short, long, value_name = "PATH")]
     report_path: Option<String>,
 
-    #[arg(long)]
+    #[arg(short, long)]
     generate: bool,
 
-    #[arg(long, value_name = "NUM", default_value = "1")]
+    #[arg(short, long, value_name = "NUM", default_value = "4")]
     threads: usize,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Configure rayon thread pool
     rayon::ThreadPoolBuilder::new()
         .num_threads(args.threads)
         .build_global()
