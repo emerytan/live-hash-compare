@@ -36,14 +36,16 @@ live-hash-compare --generate --files-path ./data
 ## -h, --help Output
 
 ```
-Usage: live-hash-compare [OPTIONS] --files-path <FILES_PATH> <--md5-file <MD5_FILE>|--generate>
+Multithreaded md5 generator or compare an existing md5 file to a path in your filesystem.
+
+Usage: live-hash-compare -f <PATH> (-m <FILE> | --generate) [-r <PATH>] [--threads <NUM>]
 
 Options:
   -f, --files-path <FILES_PATH>  
   -m, --md5-file <MD5_FILE>      
   -r, --report-path <PATH>       
-      --generate                 
-      --threads <NUM>            
+  -g, --generate                 
+  -t, --threads <NUM>            [default: 4]
   -h, --help                     Print help
   -V, --version                  Print version
 ```
