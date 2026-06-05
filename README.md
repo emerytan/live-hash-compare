@@ -40,9 +40,3 @@ live-hash-compare --generate --files-path ./data
 ```
 An md5 file will be written to the directory specified in the `--files-path|-f` option.  The formatting of the md5 file is `hashes_$(date +"%Y%m%d_%H%M%S).md5`.  If the `--report-path|-r` is given you must include a proper path and md5 file extension.
 
-
-## -h, --help Output
-
-
-
-
