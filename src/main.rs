@@ -101,7 +101,19 @@ fn main() -> Result<()> {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "hashes".to_string());
         let out_name = format!("{}_{}.md5", base, ts);
-        let out_path = Path::new(&args.files_path).join(out_name);
+        let out_path = if let Some(report_path) = args.report_path.as_ref() {
+            let path = Path::new(report_path);
+            if path.is_dir() {
+                path.join(out_name)
+            } else {
+                path.to_path_buf()
+            }
+        } else {
+            Path::new(&args.files_path).join(out_name)
+        };
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let mut out = File::create(&out_path)?;
         for (rel, hash) in hashes {
             writeln!(out, "{} {}", hash, rel)?;

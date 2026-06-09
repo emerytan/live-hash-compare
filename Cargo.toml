@@ -1,7 +1,7 @@
 chrono = "0.4"
 [package]
 name = "live-hash-compare"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "Multithreaded md5 generator or compare an existing md5 file to a path in your filesystem."
 license = "MIT"
