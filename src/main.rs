@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use terminal_size::{terminal_size, Width};
 use walkdir::WalkDir;
 
@@ -72,28 +73,6 @@ fn main() -> Result<()> {
             .progress_chars("=> "),
         );
 
-        // Multithreaded hashing with rayon, collect (filename, hash) pairs
-        let hashes: Vec<(String, String)> = file_paths
-            .par_iter()
-            .map(|entry| {
-                let path = entry.path();
-                let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
-                let rel = path
-                    .strip_prefix(&args.files_path)
-                    .unwrap_or(path)
-                    .to_string_lossy()
-                    .to_string();
-                let rel = if rel.starts_with('/') {
-                    rel
-                } else {
-                    format!("./{}", rel)
-                };
-                pb.inc(1);
-                (rel, hash)
-            })
-            .collect();
-        pb.finish_with_message("Hashing complete");
-
         let now = Local::now();
         let ts = now.format("%Y%m%d_%H-%M-%S");
         let base = Path::new(&args.files_path)
@@ -114,10 +93,29 @@ fn main() -> Result<()> {
         if let Some(parent) = out_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut out = File::create(&out_path)?;
-        for (rel, hash) in hashes {
-            writeln!(out, "{} {}", hash, rel)?;
-        }
+        let out = Arc::new(Mutex::new(File::create(&out_path)?));
+
+        file_paths.par_iter().for_each(|entry| {
+            let path = entry.path();
+            let hash = md5_file(path).unwrap_or_else(|_| "ERROR".to_string());
+            let rel = path
+                .strip_prefix(&args.files_path)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_string();
+            let rel = if rel.starts_with('/') {
+                rel
+            } else {
+                format!("./{}", rel)
+            };
+            {
+                let mut out = out.lock().unwrap();
+                writeln!(out, "{} {}", hash, rel).unwrap();
+            }
+            pb.inc(1);
+        });
+
+        pb.finish_with_message("Hashing complete");
         println!(
             "MD5 file generated: {}",
             out_path.display().to_string().green()
@@ -177,7 +175,6 @@ fn main() -> Result<()> {
         .progress_chars("=> "),
     );
 
-    use std::sync::{Arc, Mutex};
     let pb = Arc::new(pb);
     let live_hashes = Arc::new(Mutex::new(HashMap::new()));
     let pass_count = Arc::new(Mutex::new(0u64));
